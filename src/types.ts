@@ -17,6 +17,7 @@ export interface Post {
   date: string; // ISO format
   time: string;
   notes?: string;
+  color?: string;
 }
 
 export interface Client {

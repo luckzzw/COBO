@@ -12,7 +12,14 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Auth functions
-export const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
+export const loginWithGoogle = async () => {
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    console.error("Erro no login com Google:", error);
+    throw error;
+  }
+};
 export const logout = () => signOut(auth);
 
 // Test connection

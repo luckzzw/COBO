@@ -429,15 +429,36 @@ const PlanningView = ({
   client, 
   onAddPost, 
   onEditPost,
+  onUpdatePost,
   currentWeekOffset,
   onWeekChange
 }: { 
   client: Client, 
   onAddPost: (date: string, time: string) => void, 
   onEditPost: (post: Post) => void,
+  onUpdatePost: (post: Post) => void,
   currentWeekOffset: number,
   onWeekChange: (offset: number) => void
 }) => {
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const selectedPost = client.posts.find(p => p.id === selectedPostId);
+
+  const colors = [
+    { name: 'Azul', class: 'bg-blue-500' },
+    { name: 'Verde', class: 'bg-emerald-500' },
+    { name: 'Laranja', class: 'bg-amber-500' },
+    { name: 'Rosa', class: 'bg-rose-500' },
+    { name: 'Roxo', class: 'bg-violet-500' },
+    { name: 'Cinza', class: 'bg-slate-500' },
+    { name: 'Preto', class: 'bg-black' },
+  ];
+
+  const handleColorSelect = (colorClass: string) => {
+    if (selectedPost) {
+      onUpdatePost({ ...selectedPost, color: colorClass });
+    }
+  };
+
   const baseDate = new Date(2026, 2, 17); // March 17, 2026 (Monday)
   const currentMonday = new Date(baseDate);
   currentMonday.setDate(baseDate.getDate() + (currentWeekOffset * 7));
@@ -484,18 +505,18 @@ const PlanningView = ({
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <div className="min-w-[800px]">
-            <div className="grid grid-cols-8 border-b border-gray-100">
-              <div className="p-4 border-r border-gray-100 bg-gray-50/50"></div>
+            <div className="grid grid-cols-8 border-b border-black/15">
+              <div className="p-4 border-r border-black/15 bg-gray-50/50"></div>
               {days.map(day => (
-                <div key={day.name} className="p-4 text-center border-r border-gray-100 last:border-0">
+                <div key={day.name} className="p-4 text-center border-r border-black/15 last:border-0">
                   <div className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">{day.name}</div>
                   <div className="text-lg font-bold leading-none">{day.date}</div>
                 </div>
               ))}
             </div>
             {times.map(time => (
-              <div key={time} className="grid grid-cols-8 border-b border-gray-100 last:border-0">
-                <div className="p-4 text-right text-[10px] font-mono font-bold text-gray-300 border-r border-gray-100 bg-gray-50/30">
+              <div key={time} className="grid grid-cols-8 border-b border-black/15 last:border-0">
+                <div className="p-4 text-right text-sm font-mono font-bold text-black border-r border-black/15 bg-gray-50/30">
                   {time}
                 </div>
                 {days.map(day => {
@@ -503,17 +524,25 @@ const PlanningView = ({
                   return (
                     <div 
                       key={`${day.name}-${time}`} 
-                      className="p-2 border-r border-gray-100 last:border-0 min-h-[80px] hover:bg-gray-50/50 transition-colors cursor-pointer relative group"
+                      className="p-2 border-r border-black/15 last:border-0 min-h-[80px] hover:bg-gray-50/50 transition-colors cursor-pointer relative group"
                     >
-                      <span className="absolute top-1 right-1 text-[8px] font-bold text-gray-200 group-hover:text-gray-400 transition-colors">
+                      <span className="absolute top-1 right-1 text-[8px] font-bold text-gray-400 transition-colors">
                         {day.date}
                       </span>
                       {post && (
                         <div 
-                          onClick={(e) => { e.stopPropagation(); onEditPost(post); }}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSelectedPostId(post.id === selectedPostId ? null : post.id); 
+                          }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            onEditPost(post);
+                          }}
                           className={cn(
-                            "absolute inset-1 p-2 text-white rounded-lg text-[10px] font-bold shadow-sm z-1",
-                            post.type === 'HERO' ? "bg-blue-500" : post.type === 'HUB' ? "bg-emerald-500" : "bg-amber-500"
+                            "absolute inset-1 p-2 text-white rounded-lg text-[10px] font-bold shadow-sm z-1 transition-all",
+                            post.color || (post.type === 'HERO' ? "bg-blue-500" : post.type === 'HUB' ? "bg-emerald-500" : "bg-amber-500"),
+                            selectedPostId === post.id && "ring-2 ring-black ring-offset-2 scale-[0.98]"
                           )}
                         >
                           {post.platform}: {post.title}
@@ -533,13 +562,48 @@ const PlanningView = ({
           </div>
         </div>
       </Card>
+
+      <AnimatePresence>
+        {selectedPost && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-8 right-8 bg-white p-4 rounded-2xl shadow-2xl border border-black/5 z-50 flex flex-col gap-3"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Mudar Cor</span>
+              <button onClick={() => setSelectedPostId(null)} className="p-1 hover:bg-gray-100 rounded">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="flex gap-2">
+              {colors.map(color => (
+                <button
+                  key={color.class}
+                  onClick={() => handleColorSelect(color.class)}
+                  className={cn(
+                    "w-6 h-6 rounded-full transition-transform hover:scale-110",
+                    color.class,
+                    selectedPost.color === color.class && "ring-2 ring-black ring-offset-2"
+                  )}
+                  title={color.name}
+                />
+              ))}
+            </div>
+            <div className="text-[10px] text-gray-400 font-medium truncate max-w-[150px]">
+              Editando: {selectedPost.title}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 // --- Login View ---
 
-const LoginView = () => (
+const LoginView = ({ onLogin, error }: { onLogin: () => void, error: string | null }) => (
   <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -552,8 +616,20 @@ const LoginView = () => (
         <p className="text-gray-500">Sua central de inteligência para conteúdo estratégico.</p>
       </div>
       
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm text-left">
+          <p className="font-bold mb-1">Erro ao entrar:</p>
+          <p className="opacity-90">{error}</p>
+          {error.includes('auth/unauthorized-domain') && (
+            <p className="mt-2 text-xs font-medium">
+              Dica: Adicione o domínio do app no Console do Firebase (Authentication {'>'} Settings {'>'} Authorized domains).
+            </p>
+          )}
+        </div>
+      )}
+      
       <button 
-        onClick={() => loginWithGoogle()}
+        onClick={onLogin}
         className="w-full py-4 bg-white border-2 border-gray-100 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-gray-50 hover:border-gray-200 transition-all group"
       >
         <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
@@ -609,6 +685,7 @@ export default function App() {
 
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'cobo' | 'modeling' | 'planning'>('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -725,6 +802,20 @@ export default function App() {
     try {
       await updateDoc(clientRef, { posts: newPosts });
       setIsPostModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${activeClientId}`);
+    }
+  };
+
+  const handleUpdatePost = async (updatedPost: Post) => {
+    if (!user || !activeClientId) return;
+    const client = clients.find(c => c.id === activeClientId);
+    if (!client) return;
+
+    const newPosts = client.posts.map(p => p.id === updatedPost.id ? updatedPost : p);
+    const clientRef = doc(db, 'users', user.uid, 'clients', activeClientId);
+    try {
+      await updateDoc(clientRef, { posts: newPosts });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${activeClientId}`);
     }
@@ -877,6 +968,15 @@ export default function App() {
     }
   };
 
+  const handleLogin = async () => {
+    setLoginError(null);
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      setLoginError(error.message || 'Erro desconhecido ao fazer login');
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-brand-bg flex items-center justify-center">
@@ -886,7 +986,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginView />;
+    return <LoginView onLogin={handleLogin} error={loginError} />;
   }
 
   return (
@@ -1111,6 +1211,7 @@ export default function App() {
                     client={activeClient} 
                     onAddPost={handleAddPost} 
                     onEditPost={handleEditPost} 
+                    onUpdatePost={handleUpdatePost}
                     currentWeekOffset={currentWeekOffset}
                     onWeekChange={setCurrentWeekOffset}
                   />
