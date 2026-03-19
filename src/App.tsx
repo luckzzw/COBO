@@ -568,9 +568,45 @@ const LoginView = () => (
   </div>
 );
 
+// --- Google Maps API Key Check ---
+const GOOGLE_MAPS_API_KEY =
+  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
+  '';
+const hasValidMapsKey = Boolean(GOOGLE_MAPS_API_KEY) && GOOGLE_MAPS_API_KEY !== 'YOUR_API_KEY';
+
+const MapsKeySplashScreen = () => (
+  <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4 font-sans">
+    <div className="max-w-lg w-full bg-white rounded-3xl shadow-2xl p-10 text-center space-y-6">
+      <h2 className="text-2xl font-bold tracking-tight">Chave da API do Google Maps Necessária</h2>
+      <p className="text-gray-600">Para utilizar as funcionalidades de mapa, você precisa configurar sua chave de API.</p>
+      
+      <div className="text-left space-y-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+        <p className="text-sm font-semibold">Passo 1: Obtenha uma Chave de API</p>
+        <p className="text-xs text-gray-500">Acesse o <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noopener" className="text-blue-600 underline">Google Cloud Console</a> para criar sua chave.</p>
+        
+        <p className="text-sm font-semibold">Passo 2: Adicione a chave no AI Studio</p>
+        <ul className="text-xs text-gray-500 list-disc list-inside space-y-2">
+          <li>Abra as <strong>Settings</strong> (ícone de engrenagem ⚙️, no canto superior direito)</li>
+          <li>Selecione <strong>Secrets</strong></li>
+          <li>Digite <code>GOOGLE_MAPS_PLATFORM_KEY</code> como o nome do segredo, pressione <strong>Enter</strong></li>
+          <li>Cole sua chave de API como o valor, pressione <strong>Enter</strong></li>
+        </ul>
+      </div>
+      
+      <p className="text-xs text-gray-400">O aplicativo será reiniciado automaticamente após você adicionar o segredo.</p>
+    </div>
+  </div>
+);
+
 // --- Main App ---
 
 export default function App() {
+  if (!hasValidMapsKey) {
+    return <MapsKeySplashScreen />;
+  }
+
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeView, setActiveView] = useState<'dashboard' | 'cobo' | 'modeling' | 'planning'>('dashboard');
