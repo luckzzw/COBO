@@ -612,7 +612,7 @@ const LoginView = ({ onLogin, error }: { onLogin: () => void, error: string | nu
     >
       <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center text-white font-bold text-4xl italic mx-auto shadow-xl">C</div>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Bem-vindo ao COBO</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Bem-vindo ao COBO by Mattz</h1>
         <p className="text-gray-500">Sua central de inteligência para conteúdo estratégico.</p>
       </div>
       
@@ -679,6 +679,10 @@ const MapsKeySplashScreen = () => (
 // --- Main App ---
 
 export default function App() {
+  useEffect(() => {
+    document.title = "COBO by Mattz";
+  }, []);
+
   if (!hasValidMapsKey) {
     return <MapsKeySplashScreen />;
   }
@@ -995,7 +999,7 @@ export default function App() {
       <aside className="w-64 border-r border-black/5 bg-white flex flex-col p-6">
         <div className="flex items-center gap-3 mb-10 px-2">
           <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-bold text-xl italic">C</div>
-          <h2 className="font-bold text-xl tracking-tight">COBO</h2>
+          <h2 className="font-bold text-xl tracking-tight">COBO by Mattz</h2>
         </div>
 
         <nav className="flex-1 space-y-2">
