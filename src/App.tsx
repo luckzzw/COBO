@@ -1,0 +1,1505 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  LayoutDashboard, 
+  Calendar as CalendarIcon, 
+  BarChart3, 
+  Settings, 
+  Sparkles,
+  ChevronRight,
+  Plus,
+  Search,
+  Bell,
+  User as UserIcon,
+  Loader2,
+  Send,
+  Users,
+  Edit2,
+  Trash2,
+  X,
+  Check,
+  MoreVertical,
+  LogOut,
+  LogIn
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { Client, Post } from './types';
+import { 
+  auth, 
+  db, 
+  loginWithGoogle, 
+  logout, 
+  User,
+  onAuthStateChanged
+} from './firebase';
+import { 
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc,
+  query,
+  where,
+  getDoc
+} from 'firebase/firestore';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// --- Error Handling ---
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// --- Components ---
+
+const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active?: boolean, onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+      active ? "bg-black text-white shadow-md" : "text-gray-500 hover:bg-gray-100 hover:text-black"
+    )}
+  >
+    <Icon size={20} className={cn(active ? "text-white" : "text-gray-400 group-hover:text-black")} />
+    <span className="font-medium text-sm">{label}</span>
+  </button>
+);
+
+const Card = ({ children, title, className }: { children: React.ReactNode, title?: string, className?: string }) => (
+  <div className={cn("glass-card p-6", className)}>
+    {title && <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">{title}</h3>}
+    {children}
+  </div>
+);
+
+// --- Views ---
+
+const DashboardView = ({ client, onAddPost, onEditPost }: { client: Client, onAddPost: () => void, onEditPost: (post: Post) => void }) => (
+  <div className="space-y-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard: {client.name}</h1>
+        <p className="text-gray-500">Sua estratégia de conteúdo, simplificada e inteligente.</p>
+      </div>
+      <button 
+        onClick={onAddPost}
+        className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gray-800 transition-colors"
+      >
+        <Plus size={18} />
+        Novo Planejamento
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <Card title="Equilíbrio de Modelagem">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-500">HERO (Impacto)</span>
+            <span className="font-mono font-bold">{client.modeling.hero}%</span>
+          </div>
+          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+            <div className="bg-blue-500 h-full" style={{ width: `${client.modeling.hero}%` }} />
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-500">HUB (Conexão)</span>
+            <span className="font-mono font-bold">{client.modeling.hub}%</span>
+          </div>
+          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+            <div className="bg-emerald-500 h-full" style={{ width: `${client.modeling.hub}%` }} />
+          </div>
+
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-500">HELP (Utilidade)</span>
+            <span className="font-mono font-bold">{client.modeling.help}%</span>
+          </div>
+          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+            <div className="bg-amber-500 h-full" style={{ width: `${client.modeling.help}%` }} />
+          </div>
+        </div>
+      </Card>
+
+      <Card title={`Rede Primária: ${client.strategy.primaryNetwork}`}>
+        <div className="space-y-3">
+          <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Foco Atual</p>
+            <p className="text-sm font-medium">Crescimento Orgânico via Reels</p>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Posts esta semana</span>
+            <span className="font-bold">{client.posts.length}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Aderência</span>
+            <span className="text-emerald-600 font-bold">{client.modeling.adherence > 70 ? 'Alta' : 'Média'}</span>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Status da Estratégia">
+        <div className="space-y-3">
+          <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-xl border border-blue-100">
+            <Check className="text-blue-600 shrink-0" size={18} />
+            <p className="text-xs text-blue-900 leading-relaxed">
+              {client.modeling.help > 40 
+                ? "Sua estratégia está bem equilibrada. Continue focando em conteúdos HELP para manter a base engajada."
+                : "Atenção: Aumente a produção de conteúdo HELP para fortalecer sua base de seguidores."}
+            </p>
+          </div>
+          {client.modeling.hero > 25 && (
+            <div className="flex gap-3 items-start p-3 bg-amber-50 rounded-xl border border-amber-100">
+              <Bell className="text-amber-600 shrink-0" size={18} />
+              <p className="text-xs text-amber-900 leading-relaxed">
+                Muitos conteúdos HERO podem saturar sua audiência. Tente diluir com mais HUB.
+              </p>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+
+    <Card title="Cronograma Recente">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
+              <th className="pb-3 font-medium">Conteúdo</th>
+              <th className="pb-3 font-medium">Plataforma</th>
+              <th className="pb-3 font-medium">Formato</th>
+              <th className="pb-3 font-medium">Status</th>
+              <th className="pb-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {client.posts.map((item, i) => (
+              <tr key={i} className="group hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => onEditPost(item)}>
+                <td className="py-4 text-sm font-medium">{item.title}</td>
+                <td className="py-4 text-sm text-gray-500">{item.platform}</td>
+                <td className="py-4 text-sm text-gray-500">{item.format}</td>
+                <td className="py-4">
+                  <span className={cn(
+                    "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
+                    item.type === 'HERO' ? "bg-blue-100 text-blue-700" : 
+                    item.type === 'HUB' ? "bg-emerald-100 text-emerald-700" : 
+                    "bg-amber-100 text-amber-700"
+                  )}>
+                    {item.type}
+                  </span>
+                </td>
+                <td className="py-4 text-right">
+                  <button className="text-gray-400 hover:text-black opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ChevronRight size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>
+);
+
+const COBOView = ({ 
+  client, 
+  onEditStrategy, 
+  onAddFormat, 
+  onEditFormat 
+}: { 
+  client: Client, 
+  onEditStrategy: () => void, 
+  onAddFormat: () => void, 
+  onEditFormat: (format: { name: string; desc: string }, index: number) => void 
+}) => {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Content Board: {client.name}</h1>
+          <p className="text-gray-500">Defina sua estrutura de redes e formatos.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card title="Rede Primária" className="border-l-4 border-l-blue-500">
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 relative group">
+              <button 
+                onClick={onEditStrategy}
+                className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded transition-all"
+              >
+                <Edit2 size={12} />
+              </button>
+              <h4 className="font-bold text-sm mb-1 uppercase">{client.strategy.primaryNetwork}</h4>
+              <p className="text-xs text-gray-500 mb-3">Foco total em engajamento e autoridade.</p>
+              <div className="flex flex-wrap gap-2">
+                {client.strategy.secondaryNetworks.map(net => (
+                  <span key={net} className="px-2 py-1 bg-white border border-gray-200 rounded text-[10px] font-medium">{net}</span>
+                ))}
+              </div>
+            </div>
+            <button 
+              onClick={onEditStrategy}
+              className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:border-blue-500 hover:text-blue-500 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus size={16} />
+              Editar Redes
+            </button>
+          </div>
+        </Card>
+
+        <Card title="Redes Paralelas" className="border-l-4 border-l-amber-500">
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 relative group">
+              <button 
+                onClick={onEditStrategy}
+                className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded transition-all"
+              >
+                <Edit2 size={12} />
+              </button>
+              <h4 className="font-bold text-sm mb-1 uppercase">{client.strategy.tertiaryNetworks[0] || 'TIK TOK'}</h4>
+              <p className="text-xs text-gray-500 mb-3">Distribuição de conteúdo viral.</p>
+              <div className="flex flex-wrap gap-2">
+                {client.strategy.tertiaryNetworks.slice(1).map(net => (
+                  <span key={net} className="px-2 py-1 bg-white border border-gray-200 rounded text-[10px] font-medium">{net}</span>
+                ))}
+              </div>
+            </div>
+            <button 
+              onClick={onEditStrategy}
+              className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:border-amber-500 hover:text-amber-500 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus size={16} />
+              Editar Redes
+            </button>
+          </div>
+        </Card>
+
+        <Card title="Formatos de Conteúdo">
+          <div className="space-y-2">
+            {client.strategy.contentFormats.map((format, i) => (
+              <div 
+                key={i} 
+                onClick={() => onEditFormat(format, i)}
+                className="p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group relative"
+              >
+                <div className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded transition-all">
+                  <Edit2 size={12} />
+                </div>
+                <h4 className="font-bold text-sm group-hover:text-blue-600 transition-colors">{format.name}</h4>
+                <p className="text-xs text-gray-500">{format.desc}</p>
+              </div>
+            ))}
+            <button 
+              onClick={onAddFormat}
+              className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:border-blue-500 hover:text-blue-500 transition-all flex items-center justify-center gap-2 mt-2"
+            >
+              <Plus size={16} />
+              Novo Formato
+            </button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const ModelingView = ({ client, onEditModeling }: { client: Client, onEditModeling: () => void }) => (
+  <div className="space-y-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Modelagem Sistemática: {client.name}</h1>
+        <p className="text-gray-500">Equilibre sua matriz de conteúdo para sustentabilidade.</p>
+      </div>
+      <button 
+        onClick={onEditModeling}
+        className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gray-800 transition-colors"
+      >
+        <Edit2 size={18} />
+        Editar Matriz
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Card title="Matriz de Equilíbrio">
+        <div className="h-64 flex items-end justify-around gap-4 pt-4">
+          {[
+            { label: 'HERO', value: client.modeling.hero, color: 'bg-blue-500' },
+            { label: 'HUB', value: client.modeling.hub, color: 'bg-emerald-500' },
+            { label: 'HELP', value: client.modeling.help, color: 'bg-amber-500' },
+          ].map((bar, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-2">
+              <div className="text-xs font-bold">{bar.value}%</div>
+              <motion.div 
+                initial={{ height: 0 }}
+                animate={{ height: `${bar.value * 2}px` }}
+                className={cn("w-full rounded-t-lg", bar.color)}
+              />
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{bar.label}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card title="Aderência vs Profundidade">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm font-medium">
+              <span>Aderência (Frequência)</span>
+              <span className="text-emerald-600">{client.modeling.adherence}%</span>
+            </div>
+            <div className="w-full bg-gray-100 h-3 rounded-full">
+              <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${client.modeling.adherence}%` }} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm font-medium">
+              <span>Profundidade (Qualidade)</span>
+              <span className="text-blue-600">{client.modeling.depth}%</span>
+            </div>
+            <div className="w-full bg-gray-100 h-3 rounded-full">
+              <div className="bg-blue-500 h-full rounded-full" style={{ width: `${client.modeling.depth}%` }} />
+            </div>
+          </div>
+          <div className="p-4 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-500 leading-relaxed italic">
+              "O objetivo da matriz é desenvolver planejamento relevante e sustentável. Sempre tendo mais HELP's e menos HERO's."
+            </p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  </div>
+);
+
+const PlanningView = ({ 
+  client, 
+  onAddPost, 
+  onEditPost,
+  currentWeekOffset,
+  onWeekChange
+}: { 
+  client: Client, 
+  onAddPost: (date: string, time: string) => void, 
+  onEditPost: (post: Post) => void,
+  currentWeekOffset: number,
+  onWeekChange: (offset: number) => void
+}) => {
+  const baseDate = new Date(2026, 2, 17); // March 17, 2026 (Monday)
+  const currentMonday = new Date(baseDate);
+  currentMonday.setDate(baseDate.getDate() + (currentWeekOffset * 7));
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(currentMonday);
+    d.setDate(currentMonday.getDate() + i);
+    const names = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    return {
+      name: names[d.getDay()],
+      date: d.getDate(),
+      month: d.toLocaleString('default', { month: 'long' })
+    };
+  });
+
+  const times = ['08:00', '10:00', '12:00', '14:00', '18:00', '20:00'];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Planejamento: {client.name}</h1>
+          <p className="text-gray-500">Organize suas postagens por horário e plataforma.</p>
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => onWeekChange(currentWeekOffset - 1)}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+          >
+            <ChevronRight className="rotate-180" size={20} />
+          </button>
+          <span className="px-4 py-2 font-bold text-sm flex items-center min-w-[150px] justify-center">
+            {days[0].date} - {days[6].date} {days[0].month}
+          </span>
+          <button 
+            onClick={() => onWeekChange(currentWeekOffset + 1)}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      </div>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-8 border-b border-gray-100">
+              <div className="p-4 border-r border-gray-100 bg-gray-50/50"></div>
+              {days.map(day => (
+                <div key={day.name} className="p-4 text-center border-r border-gray-100 last:border-0">
+                  <div className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">{day.name}</div>
+                  <div className="text-lg font-bold leading-none">{day.date}</div>
+                </div>
+              ))}
+            </div>
+            {times.map(time => (
+              <div key={time} className="grid grid-cols-8 border-b border-gray-100 last:border-0">
+                <div className="p-4 text-right text-[10px] font-mono font-bold text-gray-300 border-r border-gray-100 bg-gray-50/30">
+                  {time}
+                </div>
+                {days.map(day => {
+                  const post = client.posts.find(p => p.time === time && p.date === day.name);
+                  return (
+                    <div 
+                      key={`${day.name}-${time}`} 
+                      className="p-2 border-r border-gray-100 last:border-0 min-h-[80px] hover:bg-gray-50/50 transition-colors cursor-pointer relative group"
+                    >
+                      <span className="absolute top-1 right-1 text-[8px] font-bold text-gray-200 group-hover:text-gray-400 transition-colors">
+                        {day.date}
+                      </span>
+                      {post && (
+                        <div 
+                          onClick={(e) => { e.stopPropagation(); onEditPost(post); }}
+                          className={cn(
+                            "absolute inset-1 p-2 text-white rounded-lg text-[10px] font-bold shadow-sm z-1",
+                            post.type === 'HERO' ? "bg-blue-500" : post.type === 'HUB' ? "bg-emerald-500" : "bg-amber-500"
+                          )}
+                        >
+                          {post.platform}: {post.title}
+                        </div>
+                      )}
+                      <button 
+                        onClick={() => onAddPost(day.name, time)}
+                        className="absolute bottom-1 right-1 p-1 bg-white border border-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity z-2"
+                      >
+                        <Plus size={10} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// --- Login View ---
+
+const LoginView = () => (
+  <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 text-center space-y-8"
+    >
+      <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center text-white font-bold text-4xl italic mx-auto shadow-xl">C</div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Bem-vindo ao COBO</h1>
+        <p className="text-gray-500">Sua central de inteligência para conteúdo estratégico.</p>
+      </div>
+      
+      <button 
+        onClick={() => loginWithGoogle()}
+        className="w-full py-4 bg-white border-2 border-gray-100 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-gray-50 hover:border-gray-200 transition-all group"
+      >
+        <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+        <span>Entrar com Google</span>
+        <ChevronRight size={18} className="text-gray-300 group-hover:text-black transition-colors" />
+      </button>
+      
+      <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
+        Acesso restrito a usuários autorizados
+      </p>
+    </motion.div>
+  </div>
+);
+
+// --- Main App ---
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [activeView, setActiveView] = useState<'dashboard' | 'cobo' | 'modeling' | 'planning'>('dashboard');
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeClientId, setActiveClientId] = useState<string | null>(null);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
+  const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
+  const [editingFormat, setEditingFormat] = useState<{ name: string; desc: string; index?: number } | null>(null);
+  const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
+  const [isModelingModalOpen, setIsModelingModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+      
+      if (currentUser) {
+        // Sync user profile to Firestore
+        const userRef = doc(db, 'users', currentUser.uid);
+        try {
+          await setDoc(userRef, {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            photoURL: currentUser.photoURL,
+            lastLogin: new Date().toISOString()
+          }, { merge: true });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, `users/${currentUser.uid}`);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Clients Listener
+  useEffect(() => {
+    if (!user) {
+      setClients([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const clientsRef = collection(db, 'users', user.uid, 'clients');
+    const unsubscribe = onSnapshot(clientsRef, (snapshot) => {
+      const clientsData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as Client[];
+      
+      setClients(clientsData);
+      setLoading(false);
+      
+      if (clientsData.length > 0 && !activeClientId) {
+        setActiveClientId(clientsData[0].id);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/clients`);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const activeClient = clients.find(c => c.id === activeClientId) || clients[0];
+
+  const handleAddPost = (date?: string, time?: string) => {
+    setEditingPost(null);
+    setSelectedSlot(date && time ? { date, time } : null);
+    setIsPostModalOpen(true);
+  };
+
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setIsPostModalOpen(true);
+  };
+
+  const handleSavePost = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user || !activeClientId) return;
+
+    const formData = new FormData(e.currentTarget);
+    const postData: Partial<Post> = {
+      title: formData.get('title') as string,
+      platform: formData.get('platform') as any,
+      format: formData.get('format') as string,
+      type: formData.get('type') as any,
+      date: formData.get('date') as string,
+      time: formData.get('time') as string,
+    };
+
+    const client = clients.find(c => c.id === activeClientId);
+    if (!client) return;
+
+    let newPosts = [...client.posts];
+    if (editingPost) {
+      newPosts = newPosts.map(p => p.id === editingPost.id ? { ...p, ...postData } : p);
+    } else {
+      newPosts.push({
+        id: Math.random().toString(36).substr(2, 9),
+        ...postData as Post
+      });
+    }
+
+    const clientRef = doc(db, 'users', user.uid, 'clients', activeClientId);
+    try {
+      await updateDoc(clientRef, { posts: newPosts });
+      setIsPostModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${activeClientId}`);
+    }
+  };
+
+  const handleSaveModeling = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user || !activeClientId) return;
+
+    const formData = new FormData(e.currentTarget);
+    const hero = parseInt(formData.get('hero') as string);
+    const hub = parseInt(formData.get('hub') as string);
+    const help = parseInt(formData.get('help') as string);
+    const adherence = parseInt(formData.get('adherence') as string);
+    const depth = parseInt(formData.get('depth') as string);
+
+    const clientRef = doc(db, 'users', user.uid, 'clients', activeClientId);
+    try {
+      await updateDoc(clientRef, { 
+        modeling: { hero, hub, help, adherence, depth } 
+      });
+      setIsModelingModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${activeClientId}`);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!user || !activeClientId) return;
+    const client = clients.find(c => c.id === activeClientId);
+    if (!client) return;
+
+    const newPosts = client.posts.filter(p => p.id !== postId);
+    const clientRef = doc(db, 'users', user.uid, 'clients', activeClientId);
+    try {
+      await updateDoc(clientRef, { posts: newPosts });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${activeClientId}`);
+    }
+  };
+
+  const handleSaveFormat = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user || !activeClientId) return;
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    const desc = formData.get('desc') as string;
+
+    const client = clients.find(c => c.id === activeClientId);
+    if (!client) return;
+
+    let newFormats = [...client.strategy.contentFormats];
+    if (editingFormat && editingFormat.index !== undefined) {
+      newFormats[editingFormat.index] = { name, desc };
+    } else {
+      newFormats.push({ name, desc });
+    }
+
+    const clientRef = doc(db, 'users', user.uid, 'clients', activeClientId);
+    try {
+      await updateDoc(clientRef, { 
+        'strategy.contentFormats': newFormats 
+      });
+      setIsFormatModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${activeClientId}`);
+    }
+  };
+
+  const handleSaveStrategy = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user || !activeClientId) return;
+
+    const formData = new FormData(e.currentTarget);
+    const primaryNetwork = formData.get('primaryNetwork') as string;
+    const secondaryNetworks = (formData.get('secondaryNetworks') as string).split(',').map(s => s.trim()).filter(Boolean);
+    const tertiaryNetworks = (formData.get('tertiaryNetworks') as string).split(',').map(s => s.trim()).filter(Boolean);
+
+    const clientRef = doc(db, 'users', user.uid, 'clients', activeClientId);
+    try {
+      await updateDoc(clientRef, { 
+        'strategy.primaryNetwork': primaryNetwork,
+        'strategy.secondaryNetworks': secondaryNetworks,
+        'strategy.tertiaryNetworks': tertiaryNetworks
+      });
+      setIsStrategyModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${activeClientId}`);
+    }
+  };
+
+  const handleAddClient = () => {
+    setEditingClient(null);
+    setIsClientModalOpen(true);
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    setIsClientModalOpen(true);
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (!user || clients.length <= 0) return;
+    
+    const clientRef = doc(db, 'users', user.uid, 'clients', id);
+    try {
+      await deleteDoc(clientRef);
+      if (activeClientId === id) {
+        const remaining = clients.filter(c => c.id !== id);
+        setActiveClientId(remaining.length > 0 ? remaining[0].id : null);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/clients/${id}`);
+    }
+  };
+
+  const handleSaveClient = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user) return;
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    
+    try {
+      if (editingClient) {
+        const clientRef = doc(db, 'users', user.uid, 'clients', editingClient.id);
+        await updateDoc(clientRef, { name });
+      } else {
+        const clientsRef = collection(db, 'users', user.uid, 'clients');
+        const newClientData = {
+          name,
+          avatar: `https://picsum.photos/seed/${name}/100/100`,
+          strategy: {
+            id: Math.random().toString(36).substr(2, 9),
+            primaryNetwork: 'Instagram',
+            secondaryNetworks: [],
+            tertiaryNetworks: [],
+            contentFormats: []
+          },
+          posts: [],
+          modeling: { hero: 15, hub: 35, help: 50, adherence: 80, depth: 50 }
+        };
+        const docRef = await addDoc(clientsRef, newClientData);
+        setActiveClientId(docRef.id);
+      }
+      setIsClientModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, editingClient ? OperationType.UPDATE : OperationType.CREATE, `users/${user.uid}/clients`);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-brand-bg flex items-center justify-center">
+        <Loader2 className="animate-spin text-black" size={40} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginView />;
+  }
+
+  return (
+    <div className="flex h-screen bg-brand-bg overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-black/5 bg-white flex flex-col p-6">
+        <div className="flex items-center gap-3 mb-10 px-2">
+          <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-bold text-xl italic">C</div>
+          <h2 className="font-bold text-xl tracking-tight">COBO</h2>
+        </div>
+
+        <nav className="flex-1 space-y-2">
+          <SidebarItem 
+            icon={LayoutDashboard} 
+            label="Dashboard" 
+            active={activeView === 'dashboard'} 
+            onClick={() => setActiveView('dashboard')} 
+          />
+          <SidebarItem 
+            icon={Sparkles} 
+            label="Content Board" 
+            active={activeView === 'cobo'} 
+            onClick={() => setActiveView('cobo')} 
+          />
+          <SidebarItem 
+            icon={BarChart3} 
+            label="Modelagem" 
+            active={activeView === 'modeling'} 
+            onClick={() => setActiveView('modeling')} 
+          />
+          <SidebarItem 
+            icon={CalendarIcon} 
+            label="Planejamento" 
+            active={activeView === 'planning'} 
+            onClick={() => setActiveView('planning')} 
+          />
+        </nav>
+
+        <div className="mt-auto space-y-4">
+          {loading ? (
+            <div className="p-4 flex justify-center">
+              <Loader2 className="animate-spin text-gray-300" size={20} />
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <BarChart3 size={16} />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider">Desempenho</span>
+              </div>
+              <p className="text-[10px] text-gray-500 leading-relaxed">
+                {activeClient 
+                  ? `Estratégia de ${activeClient.name} está com boa aderência.`
+                  : "Nenhum cliente selecionado."}
+              </p>
+            </div>
+          )}
+          <SidebarItem icon={Settings} label="Configurações" onClick={() => setIsSettingsModalOpen(true)} />
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto">
+        {/* Header */}
+        <header className="h-20 border-b border-black/5 bg-white/50 backdrop-blur-md sticky top-0 z-10 px-8 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            {/* Client Selector */}
+            <div className="relative group">
+              <button className="flex items-center gap-3 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all">
+                <Users size={18} className="text-gray-500" />
+                <span className="text-sm font-bold">{activeClient?.name || 'Selecionar Cliente'}</span>
+                <ChevronRight size={16} className="rotate-90 text-gray-400" />
+              </button>
+              
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-black/5 shadow-xl rounded-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 p-2">
+                <div className="max-h-64 overflow-y-auto space-y-1">
+                  {clients.map(client => (
+                    <div key={client.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors group/item">
+                      <button 
+                        onClick={() => setActiveClientId(client.id)}
+                        className="flex items-center gap-3 flex-1 text-left"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-gray-100 overflow-hidden">
+                          <img src={client.avatar} alt={client.name} referrerPolicy="no-referrer" />
+                        </div>
+                        <span className={cn("text-sm", activeClientId === client.id ? "font-bold" : "font-medium")}>
+                          {client.name}
+                        </span>
+                      </button>
+                      <div className="flex gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                        <button onClick={() => handleEditClient(client)} className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-black">
+                          <Edit2 size={12} />
+                        </button>
+                        <button onClick={() => handleDeleteClient(client.id)} className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-red-500">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-gray-100 mt-2 pt-2">
+                  <button 
+                    onClick={handleAddClient}
+                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 rounded-xl text-sm font-bold text-blue-600 transition-colors"
+                  >
+                    <Plus size={16} />
+                    Novo Cliente
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition-all relative"
+            >
+              <Bell size={20} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+            
+            {isNotificationsOpen && (
+              <div className="absolute top-full right-8 mt-2 w-80 bg-white border border-black/5 shadow-2xl rounded-2xl z-30 p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold">Notificações</h4>
+                  <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">2 NOVAS</span>
+                </div>
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-xs font-bold mb-1">Novo Post Agendado</p>
+                    <p className="text-[10px] text-gray-500">Um novo conteúdo foi adicionado ao seu cronograma.</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-xs font-bold mb-1">Estratégia Atualizada</p>
+                    <p className="text-[10px] text-gray-500">Sua matriz de modelagem foi ajustada recentemente.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="h-8 w-[1px] bg-gray-200 mx-2"></div>
+            <div className="relative">
+              <div 
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="text-right">
+                  <p className="text-sm font-bold leading-none">{user.displayName || 'Usuário'}</p>
+                  <p className="text-[10px] text-gray-400 font-medium">{user.email}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-gray-200 overflow-hidden border-2 border-transparent group-hover:border-black transition-all">
+                  <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} alt="Avatar" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+
+              {isProfileOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-black/5 shadow-2xl rounded-2xl z-30 p-2">
+                  <button className="w-full flex items-center gap-2 p-3 hover:bg-gray-50 rounded-xl text-sm font-medium transition-colors">
+                    <UserIcon size={16} />
+                    Meu Perfil
+                  </button>
+                  <button 
+                    onClick={() => logout()}
+                    className="w-full flex items-center gap-2 p-3 hover:bg-gray-50 rounded-xl text-sm font-medium text-red-500 transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Sair
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* View Content */}
+        <div className="p-8 max-w-7xl mx-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-4">
+              <Loader2 className="animate-spin text-black" size={40} />
+              <p className="text-gray-500 font-medium">Carregando seus dados...</p>
+            </div>
+          ) : clients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-6 text-center">
+              <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-gray-300">
+                <Users size={40} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Nenhum cliente encontrado</h2>
+                <p className="text-gray-500 max-w-md">Comece adicionando seu primeiro cliente para gerenciar estratégias e conteúdos.</p>
+              </div>
+              <button 
+                onClick={handleAddClient}
+                className="bg-black text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-gray-800 transition-all"
+              >
+                <Plus size={20} />
+                Adicionar Primeiro Cliente
+              </button>
+            </div>
+          ) : activeClient ? (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${activeView}-${activeClientId}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeView === 'dashboard' && <DashboardView client={activeClient} onAddPost={() => handleAddPost()} onEditPost={handleEditPost} />}
+                {activeView === 'cobo' && (
+                  <COBOView 
+                    client={activeClient} 
+                    onEditStrategy={() => setIsStrategyModalOpen(true)}
+                    onAddFormat={() => { setEditingFormat(null); setIsFormatModalOpen(true); }}
+                    onEditFormat={(format, index) => { setEditingFormat({ ...format, index }); setIsFormatModalOpen(true); }}
+                  />
+                )}
+                {activeView === 'modeling' && <ModelingView client={activeClient} onEditModeling={() => setIsModelingModalOpen(true)} />}
+                {activeView === 'planning' && (
+                  <PlanningView 
+                    client={activeClient} 
+                    onAddPost={handleAddPost} 
+                    onEditPost={handleEditPost} 
+                    currentWeekOffset={currentWeekOffset}
+                    onWeekChange={setCurrentWeekOffset}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-gray-500">Selecione um cliente para visualizar os dados.</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsModalOpen(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">Configurações</h3>
+                <button onClick={() => setIsSettingsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-bold mb-3">Preferências da Agência</h4>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
+                      <input type="checkbox" defaultChecked className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black" />
+                      <span className="text-sm">Notificações por E-mail</span>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
+                      <input type="checkbox" defaultChecked className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black" />
+                      <span className="text-sm">Relatórios Semanais Automáticos</span>
+                    </label>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsSettingsModalOpen(false)}
+                  className="w-full py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-gray-800 transition-all"
+                >
+                  Salvar Alterações
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modeling Modal */}
+      <AnimatePresence>
+        {isModelingModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModelingModalOpen(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">Editar Modelagem</h3>
+                <button onClick={() => setIsModelingModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleSaveModeling} className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">HERO %</label>
+                    <input name="hero" type="number" defaultValue={activeClient.modeling.hero} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">HUB %</label>
+                    <input name="hub" type="number" defaultValue={activeClient.modeling.hub} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">HELP %</label>
+                    <input name="help" type="number" defaultValue={activeClient.modeling.help} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Aderência %</label>
+                    <input name="adherence" type="number" defaultValue={activeClient.modeling.adherence} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Profundidade %</label>
+                    <input name="depth" type="number" defaultValue={activeClient.modeling.depth} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  </div>
+                </div>
+                <div className="pt-4">
+                  <button 
+                    type="submit"
+                    className="w-full py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Check size={18} />
+                    Salvar Modelagem
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Post Modal */}
+      <AnimatePresence>
+        {isPostModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsPostModalOpen(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">{editingPost ? 'Editar Post' : 'Novo Post'}</h3>
+                <button onClick={() => setIsPostModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleSavePost} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título do Conteúdo</label>
+                  <input 
+                    name="title"
+                    type="text" 
+                    defaultValue={editingPost?.title || ''}
+                    placeholder="Ex: Dica de Design"
+                    required
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Plataforma</label>
+                    <select name="platform" defaultValue={editingPost?.platform || 'Instagram'} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none">
+                      <option>Instagram</option>
+                      <option>TikTok</option>
+                      <option>YouTube</option>
+                      <option>Facebook</option>
+                      <option>Stories</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Tipo (Modeling)</label>
+                    <select name="type" defaultValue={editingPost?.type || 'HELP'} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none">
+                      <option>HERO</option>
+                      <option>HUB</option>
+                      <option>HELP</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Dia</label>
+                    <select name="date" defaultValue={editingPost?.date || selectedSlot?.date || 'Segunda'} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none">
+                      <option>Segunda</option>
+                      <option>Terça</option>
+                      <option>Quarta</option>
+                      <option>Quinta</option>
+                      <option>Sexta</option>
+                      <option>Sábado</option>
+                      <option>Domingo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Horário</label>
+                    <select name="time" defaultValue={editingPost?.time || selectedSlot?.time || '08:00'} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none">
+                      <option>08:00</option>
+                      <option>10:00</option>
+                      <option>12:00</option>
+                      <option>14:00</option>
+                      <option>18:00</option>
+                      <option>20:00</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Formato</label>
+                  <input 
+                    name="format"
+                    type="text" 
+                    defaultValue={editingPost?.format || ''}
+                    placeholder="Ex: Reels, Carrossel..."
+                    required
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all"
+                  />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  {editingPost && (
+                    <button 
+                      type="button"
+                      onClick={() => { handleDeletePost(editingPost.id); setIsPostModalOpen(false); }}
+                      className="px-4 py-3 font-bold text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    >
+                      Excluir
+                    </button>
+                  )}
+                  <button 
+                    type="submit"
+                    className="flex-1 py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Check size={18} />
+                    Salvar Post
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Format Modal */}
+      <AnimatePresence>
+        {isFormatModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsFormatModalOpen(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">{editingFormat ? 'Editar Formato' : 'Novo Formato'}</h3>
+                <button onClick={() => setIsFormatModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleSaveFormat} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome do Formato</label>
+                  <input 
+                    name="name"
+                    type="text" 
+                    defaultValue={editingFormat?.name || ''}
+                    placeholder="Ex: Time Coat"
+                    required
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Descrição</label>
+                  <textarea 
+                    name="desc"
+                    defaultValue={editingFormat?.desc || ''}
+                    placeholder="Descreva como funciona esse formato..."
+                    required
+                    rows={3}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all resize-none"
+                  />
+                </div>
+                <div className="pt-4">
+                  <button 
+                    type="submit"
+                    className="w-full py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Check size={18} />
+                    Salvar Formato
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Strategy Modal */}
+      <AnimatePresence>
+        {isStrategyModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsStrategyModalOpen(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">Editar Estratégia de Redes</h3>
+                <button onClick={() => setIsStrategyModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleSaveStrategy} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Rede Primária</label>
+                  <input 
+                    name="primaryNetwork"
+                    type="text" 
+                    defaultValue={activeClient.strategy.primaryNetwork}
+                    required
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Redes Secundárias (separadas por vírgula)</label>
+                  <input 
+                    name="secondaryNetworks"
+                    type="text" 
+                    defaultValue={activeClient.strategy.secondaryNetworks.join(', ')}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Redes Terciárias (separadas por vírgula)</label>
+                  <input 
+                    name="tertiaryNetworks"
+                    type="text" 
+                    defaultValue={activeClient.strategy.tertiaryNetworks.join(', ')}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all"
+                  />
+                </div>
+                <div className="pt-4">
+                  <button 
+                    type="submit"
+                    className="w-full py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Check size={18} />
+                    Salvar Estratégia
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Client Modal */}
+      <AnimatePresence>
+        {isClientModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsClientModalOpen(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</h3>
+                <button onClick={() => setIsClientModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleSaveClient} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome do Cliente / Empresa</label>
+                  <input 
+                    name="name"
+                    type="text" 
+                    defaultValue={editingClient?.name || ''}
+                    placeholder="Ex: William Silva"
+                    required
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all"
+                  />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsClientModalOpen(false)}
+                    className="flex-1 py-3 font-bold text-sm text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Check size={18} />
+                    Salvar Cliente
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

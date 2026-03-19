@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Client strategy and content modeling",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "strategy": { "type": "object" },
+        "posts": { "type": "array" },
+        "modeling": { "type": "object" }
+      },
+      "required": ["name"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of users"
+    },
+    "users/{userId}/clients": {
+      "schema": "Client",
+      "description": "Clients belonging to a specific user"
+    }
+  }
+}
