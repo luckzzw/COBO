@@ -20,6 +20,12 @@ export interface Post {
   color?: string;
 }
 
+export interface WeeklyDay {
+  content: string;
+  format: string;
+  time: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -27,11 +33,20 @@ export interface Client {
   strategy: UserStrategy;
   posts: Post[];
   modeling: {
-    hero: number;
-    hub: number;
-    help: number;
-    adherence: number;
-    depth: number;
+    heroQty: number;
+    hubQty: number;
+    helpQty: number;
+    mistoQty: number;
+    adherenceQty: number;
+    depthQty: number;
+    order: string[];
+    group: string[];
+    postedDays: number;
+    currentPlatform: string;
+    observations?: string;
+    weeklySchedule: {
+      [key: string]: WeeklyDay;
+    };
   };
 }
 

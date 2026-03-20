@@ -127,89 +127,99 @@ const Card = ({ children, title, className }: { children: React.ReactNode, title
 
 // --- Views ---
 
-const DashboardView = ({ client, onAddPost, onEditPost }: { client: Client, onAddPost: () => void, onEditPost: (post: Post) => void }) => (
-  <div className="space-y-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard: {client.name}</h1>
-        <p className="text-gray-500">Sua estratégia de conteúdo, simplificada e inteligente.</p>
+const DashboardView = ({ client, onAddPost, onEditPost }: { client: Client, onAddPost: () => void, onEditPost: (post: Post) => void }) => {
+  const m = client.modeling;
+  const totalQty = (m.heroQty || 0) + (m.hubQty || 0) + (m.helpQty || 0) + (m.mistoQty || 0);
+  const getPct = (qty: number) => totalQty > 0 ? Math.round((qty / totalQty) * 100) : 0;
+
+  const heroPct = getPct(m.heroQty || 0);
+  const hubPct = getPct(m.hubQty || 0);
+  const helpPct = getPct(m.helpQty || 0);
+  const mistoPct = getPct(m.mistoQty || 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard: {client.name}</h1>
+          <p className="text-gray-500">Sua estratégia de conteúdo, simplificada e inteligente.</p>
+        </div>
+        <button 
+          onClick={onAddPost}
+          className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gray-800 transition-colors"
+        >
+          <Plus size={18} />
+          Novo Planejamento
+        </button>
       </div>
-      <button 
-        onClick={onAddPost}
-        className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gray-800 transition-colors"
-      >
-        <Plus size={18} />
-        Novo Planejamento
-      </button>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <Card title="Equilíbrio de Modelagem">
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">HERO (Impacto)</span>
-            <span className="font-mono font-bold">{client.modeling.hero}%</span>
-          </div>
-          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-            <div className="bg-blue-500 h-full" style={{ width: `${client.modeling.hero}%` }} />
-          </div>
-          
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">HUB (Conexão)</span>
-            <span className="font-mono font-bold">{client.modeling.hub}%</span>
-          </div>
-          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-            <div className="bg-emerald-500 h-full" style={{ width: `${client.modeling.hub}%` }} />
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card title="Equilíbrio de Modelagem">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">HERO (Impacto)</span>
+              <span className="font-mono font-bold">{heroPct}%</span>
+            </div>
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+              <div className="bg-blue-500 h-full" style={{ width: `${heroPct}%` }} />
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">HUB (Conexão)</span>
+              <span className="font-mono font-bold">{hubPct}%</span>
+            </div>
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+              <div className="bg-emerald-500 h-full" style={{ width: `${hubPct}%` }} />
+            </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">HELP (Utilidade)</span>
-            <span className="font-mono font-bold">{client.modeling.help}%</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">HELP (Utilidade)</span>
+              <span className="font-mono font-bold">{helpPct}%</span>
+            </div>
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+              <div className="bg-amber-500 h-full" style={{ width: `${helpPct}%` }} />
+            </div>
           </div>
-          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-            <div className="bg-amber-500 h-full" style={{ width: `${client.modeling.help}%` }} />
-          </div>
-        </div>
-      </Card>
+        </Card>
 
-      <Card title={`Rede Primária: ${client.strategy.primaryNetwork}`}>
-        <div className="space-y-3">
-          <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Foco Atual</p>
-            <p className="text-sm font-medium">Crescimento Orgânico via Reels</p>
+        <Card title={`Rede Primária: ${client.strategy.primaryNetwork}`}>
+          <div className="space-y-3">
+            <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+              <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Foco Atual</p>
+              <p className="text-sm font-medium">Crescimento Orgânico via Reels</p>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Posts esta semana</span>
+              <span className="font-bold">{client.posts.length}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Aderência</span>
+              <span className="text-emerald-600 font-bold">{m.adherenceQty > 7 ? 'Alta' : 'Média'}</span>
+            </div>
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Posts esta semana</span>
-            <span className="font-bold">{client.posts.length}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Aderência</span>
-            <span className="text-emerald-600 font-bold">{client.modeling.adherence > 70 ? 'Alta' : 'Média'}</span>
-          </div>
-        </div>
-      </Card>
+        </Card>
 
-      <Card title="Status da Estratégia">
-        <div className="space-y-3">
-          <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-xl border border-blue-100">
-            <Check className="text-blue-600 shrink-0" size={18} />
-            <p className="text-xs text-blue-900 leading-relaxed">
-              {client.modeling.help > 40 
-                ? "Sua estratégia está bem equilibrada. Continue focando em conteúdos HELP para manter a base engajada."
-                : "Atenção: Aumente a produção de conteúdo HELP para fortalecer sua base de seguidores."}
-            </p>
-          </div>
-          {client.modeling.hero > 25 && (
-            <div className="flex gap-3 items-start p-3 bg-amber-50 rounded-xl border border-amber-100">
-              <Bell className="text-amber-600 shrink-0" size={18} />
-              <p className="text-xs text-amber-900 leading-relaxed">
-                Muitos conteúdos HERO podem saturar sua audiência. Tente diluir com mais HUB.
+        <Card title="Status da Estratégia">
+          <div className="space-y-3">
+            <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-xl border border-blue-100">
+              <Check className="text-blue-600 shrink-0" size={18} />
+              <p className="text-xs text-blue-900 leading-relaxed">
+                {helpPct > 40 
+                  ? "Sua estratégia está bem equilibrada. Continue focando em conteúdos HELP para manter a base engajada."
+                  : "Atenção: Aumente a produção de conteúdo HELP para fortalecer sua base de seguidores."}
               </p>
             </div>
-          )}
-        </div>
-      </Card>
-    </div>
+            {heroPct > 25 && (
+              <div className="flex gap-3 items-start p-3 bg-amber-50 rounded-xl border border-amber-100">
+                <Bell className="text-amber-600 shrink-0" size={18} />
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  Muitos conteúdos HERO podem saturar sua audiência. Tente diluir com mais HUB.
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
 
     <Card title="Cronograma Recente">
       <div className="overflow-x-auto">
@@ -251,7 +261,8 @@ const DashboardView = ({ client, onAddPost, onEditPost }: { client: Client, onAd
       </div>
     </Card>
   </div>
-);
+  );
+};
 
 const COBOView = ({ 
   client, 
@@ -357,73 +368,171 @@ const COBOView = ({
   );
 };
 
-const ModelingView = ({ client, onEditModeling }: { client: Client, onEditModeling: () => void }) => (
-  <div className="space-y-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Modelagem Sistemática: {client.name}</h1>
-        <p className="text-gray-500">Equilibre sua matriz de conteúdo para sustentabilidade.</p>
+const ModelingView = ({ client, onEditModeling }: { client: Client, onEditModeling: () => void }) => {
+  const m = client.modeling || {
+    heroQty: 0, hubQty: 0, helpQty: 0, mistoQty: 0,
+    adherenceQty: 0, depthQty: 0, postedDays: 0,
+    currentPlatform: '',
+    order: [], group: [],
+    weeklySchedule: {}
+  };
+
+  const totalQty = (m.heroQty || 0) + (m.hubQty || 0) + (m.helpQty || 0) + (m.mistoQty || 0);
+  const getPct = (qty: number) => totalQty > 0 ? Math.round((qty / totalQty) * 100) : 0;
+
+  const heroPct = getPct(m.heroQty || 0);
+  const hubPct = getPct(m.hubQty || 0);
+  const helpPct = getPct(m.helpQty || 0);
+  const mistoPct = getPct(m.mistoQty || 0);
+
+  const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+
+  return (
+    <div className="space-y-6 pb-20">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Modelagem Sistemática: {client.name}</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-gray-500">Equilibre sua matriz de conteúdo para sustentabilidade.</p>
+            {m.currentPlatform && (
+              <span className="px-2 py-0.5 bg-black text-white text-[10px] font-bold rounded-full uppercase">
+                {m.currentPlatform}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-[10px] font-bold text-gray-400 uppercase">Dias Postados</p>
+            <p className="text-xl font-bold">{m.postedDays || 0}</p>
+          </div>
+          <button 
+            onClick={onEditModeling}
+            className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gray-800 transition-colors"
+          >
+            <Edit2 size={18} />
+            Editar Matriz
+          </button>
+        </div>
       </div>
-      <button 
-        onClick={onEditModeling}
-        className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gray-800 transition-colors"
-      >
-        <Edit2 size={18} />
-        Editar Matriz
-      </button>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card title="Matriz de Equilíbrio">
-        <div className="h-64 flex items-end justify-around gap-4 pt-4">
-          {[
-            { label: 'HERO', value: client.modeling.hero, color: 'bg-blue-500' },
-            { label: 'HUB', value: client.modeling.hub, color: 'bg-emerald-500' },
-            { label: 'HELP', value: client.modeling.help, color: 'bg-amber-500' },
-          ].map((bar, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-              <div className="text-xs font-bold">{bar.value}%</div>
-              <motion.div 
-                initial={{ height: 0 }}
-                animate={{ height: `${bar.value * 2}px` }}
-                className={cn("w-full rounded-t-lg", bar.color)}
-              />
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{bar.label}</div>
-            </div>
-          ))}
+      <Card title="Grade Semanal (COBO)">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="p-3 border border-gray-200 text-left font-bold text-gray-400 uppercase text-[10px]">Dia</th>
+                <th className="p-3 border border-gray-200 text-left font-bold text-gray-400 uppercase text-[10px]">Conteúdo</th>
+                <th className="p-3 border border-gray-200 text-left font-bold text-gray-400 uppercase text-[10px]">Formato</th>
+                <th className="p-3 border border-gray-200 text-left font-bold text-gray-400 uppercase text-[10px]">Horário</th>
+              </tr>
+            </thead>
+            <tbody>
+              {days.map(day => (
+                <tr key={day} className="hover:bg-gray-50 transition-colors">
+                  <td className="p-3 border border-gray-200 font-bold bg-gray-50/50">{day}</td>
+                  <td className="p-3 border border-gray-200">{m.weeklySchedule?.[day]?.content || '---'}</td>
+                  <td className="p-3 border border-gray-200">{m.weeklySchedule?.[day]?.format || '---'}</td>
+                  <td className="p-3 border border-gray-200">{m.weeklySchedule?.[day]?.time || '---'}</td>
+                </tr>
+              ))}
+              <tr className="bg-gray-100 font-bold">
+                <td className="p-3 border border-gray-200">TOTAL</td>
+                <td className="p-3 border border-gray-200" colSpan={3}>
+                  {days.filter(day => m.weeklySchedule?.[day]?.content).length} Posts Planejados
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </Card>
 
-      <Card title="Aderência vs Profundidade">
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card title="Equilíbrio (Modelagem)">
+          <div className="h-64 flex items-end justify-around gap-4 pt-4">
+            {[
+              { label: 'HERO', qty: m.heroQty || 0, pct: heroPct, color: 'bg-blue-500' },
+              { label: 'HUB', qty: m.hubQty || 0, pct: hubPct, color: 'bg-emerald-500' },
+              { label: 'HELP', qty: m.helpQty || 0, pct: helpPct, color: 'bg-amber-500' },
+              { label: 'MISTO', qty: m.mistoQty || 0, pct: mistoPct, color: 'bg-rose-500' },
+            ].map((bar, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="text-[10px] font-bold text-gray-400">Qtd: {bar.qty}</div>
+                <div className="text-xs font-bold">{bar.pct}%</div>
+                <motion.div 
+                  initial={{ height: 0 }}
+                  animate={{ height: `${bar.pct * 2}px` }}
+                  className={cn("w-full rounded-t-lg", bar.color)}
+                />
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{bar.label}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Permeabilidade">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm font-medium">
+                <span>Aderência (Frequência)</span>
+                <span className="text-emerald-600">Qtd: {m.adherenceQty || 0}</span>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(100, (m.adherenceQty || 0) * 10)}%` }} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm font-medium">
+                <span>Profundidade (Qualidade)</span>
+                <span className="text-blue-600">Qtd: {m.depthQty || 0}</span>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full rounded-full" style={{ width: `${Math.min(100, (m.depthQty || 0) * 10)}%` }} />
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <p className="text-xs text-gray-500 leading-relaxed italic">
+                "O objetivo da matriz é desenvolver planejamento relevante e sustentável. Sempre tendo mais HELP's e menos HERO's."
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card title="Ordem de Conteúdo">
           <div className="space-y-2">
-            <div className="flex justify-between text-sm font-medium">
-              <span>Aderência (Frequência)</span>
-              <span className="text-emerald-600">{client.modeling.adherence}%</span>
-            </div>
-            <div className="w-full bg-gray-100 h-3 rounded-full">
-              <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${client.modeling.adherence}%` }} />
-            </div>
+            {(m.order || Array(10).fill('')).map((item, i) => (
+              <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="text-[10px] font-bold text-gray-400 w-6">{i + 1}º</span>
+                <span className="text-sm font-medium">{item || '---'}</span>
+              </div>
+            ))}
           </div>
+        </Card>
+
+        <Card title="Grupo de Conteúdo">
           <div className="space-y-2">
-            <div className="flex justify-between text-sm font-medium">
-              <span>Profundidade (Qualidade)</span>
-              <span className="text-blue-600">{client.modeling.depth}%</span>
-            </div>
-            <div className="w-full bg-gray-100 h-3 rounded-full">
-              <div className="bg-blue-500 h-full rounded-full" style={{ width: `${client.modeling.depth}%` }} />
-            </div>
+            {(m.group || Array(10).fill('')).map((item, i) => (
+              <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="text-[10px] font-bold text-gray-400 w-6">{i + 1}º</span>
+                <span className="text-sm font-medium">{item || '---'}</span>
+              </div>
+            ))}
           </div>
-          <div className="p-4 bg-gray-50 rounded-xl">
-            <p className="text-xs text-gray-500 leading-relaxed italic">
-              "O objetivo da matriz é desenvolver planejamento relevante e sustentável. Sempre tendo mais HELP's e menos HERO's."
-            </p>
+        </Card>
+      </div>
+
+      {m.observations && (
+        <Card title="Observações">
+          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <p className="text-sm text-gray-600 whitespace-pre-wrap">{m.observations}</p>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const PlanningView = ({ 
   client, 
@@ -764,6 +873,30 @@ export default function App() {
 
   const activeClient = clients.find(c => c.id === activeClientId) || clients[0];
 
+  const [modelingForm, setModelingForm] = useState({
+    heroQty: 0,
+    hubQty: 0,
+    helpQty: 0,
+    mistoQty: 0,
+    totalPostsMonthly: 0,
+  });
+
+  useEffect(() => {
+    if (isModelingModalOpen && activeClient) {
+      const hero = activeClient.modeling?.heroQty || 0;
+      const hub = activeClient.modeling?.hubQty || 0;
+      const help = activeClient.modeling?.helpQty || 0;
+      const misto = activeClient.modeling?.mistoQty || 0;
+      setModelingForm({
+        heroQty: hero,
+        hubQty: hub,
+        helpQty: help,
+        mistoQty: misto,
+        totalPostsMonthly: hero + hub + help + misto,
+      });
+    }
+  }, [isModelingModalOpen, activeClient]);
+
   const handleAddPost = (date?: string, time?: string) => {
     setEditingPost(null);
     setSelectedSlot(date && time ? { date, time } : null);
@@ -830,16 +963,49 @@ export default function App() {
     if (!user || !activeClientId) return;
 
     const formData = new FormData(e.currentTarget);
-    const hero = parseInt(formData.get('hero') as string);
-    const hub = parseInt(formData.get('hub') as string);
-    const help = parseInt(formData.get('help') as string);
-    const adherence = parseInt(formData.get('adherence') as string);
-    const depth = parseInt(formData.get('depth') as string);
+    const heroQty = parseInt(formData.get('heroQty') as string) || 0;
+    const hubQty = parseInt(formData.get('hubQty') as string) || 0;
+    const helpQty = parseInt(formData.get('helpQty') as string) || 0;
+    const mistoQty = parseInt(formData.get('mistoQty') as string) || 0;
+    const totalPostsMonthly = heroQty + hubQty + helpQty + mistoQty;
+    const adherenceQty = parseInt(formData.get('adherenceQty') as string) || 0;
+    const depthQty = parseInt(formData.get('depthQty') as string) || 0;
+    const postedDays = parseInt(formData.get('postedDays') as string) || 0;
+    const currentPlatform = formData.get('currentPlatform') as string || '';
+    const observations = formData.get('observations') as string || '';
+
+    const order = Array.from({ length: 10 }, (_, i) => formData.get(`order_${i}`) as string || '');
+    const group = Array.from({ length: 10 }, (_, i) => formData.get(`group_${i}`) as string || '');
+
+    const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+    const weeklySchedule: { [key: string]: any } = {};
+    days.forEach(day => {
+      weeklySchedule[day] = {
+        content: formData.get(`schedule_${day}_content`) as string || '',
+        format: formData.get(`schedule_${day}_format`) as string || '',
+        time: formData.get(`schedule_${day}_time`) as string || '',
+        type: formData.get(`schedule_${day}_type`) as string || 'HELP',
+      };
+    });
 
     const clientRef = doc(db, 'users', user.uid, 'clients', activeClientId);
     try {
       await updateDoc(clientRef, { 
-        modeling: { hero, hub, help, adherence, depth } 
+        modeling: { 
+          heroQty, 
+          hubQty, 
+          helpQty, 
+          mistoQty, 
+          totalPostsMonthly,
+          adherenceQty, 
+          depthQty, 
+          postedDays,
+          currentPlatform,
+          observations,
+          order,
+          group,
+          weeklySchedule
+        } 
       });
       setIsModelingModalOpen(false);
     } catch (error) {
@@ -961,7 +1127,19 @@ export default function App() {
             contentFormats: []
           },
           posts: [],
-          modeling: { hero: 15, hub: 35, help: 50, adherence: 80, depth: 50 }
+          modeling: { 
+            heroQty: 0, 
+            hubQty: 0, 
+            helpQty: 0, 
+            mistoQty: 0, 
+            adherenceQty: 0, 
+            depthQty: 0, 
+            postedDays: 0,
+            currentPlatform: 'Instagram',
+            order: Array(10).fill(''),
+            group: Array(10).fill(''),
+            weeklySchedule: {}
+          }
         };
         const docRef = await addDoc(clientsRef, newClientData);
         setActiveClientId(docRef.id);
@@ -1281,7 +1459,7 @@ export default function App() {
 
       {/* Modeling Modal */}
       <AnimatePresence>
-        {isModelingModalOpen && (
+        {isModelingModalOpen && activeClient && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
@@ -1294,46 +1472,178 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+              className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold">Editar Modelagem</h3>
+              <div className="flex items-center justify-between mb-6 sticky top-0 bg-white z-10 pb-4 border-b">
+                <div>
+                  <h3 className="text-xl font-bold">Editar Modelagem Sistemática</h3>
+                  <p className="text-xs text-gray-500">Configure as quantidades e a grade semanal.</p>
+                </div>
                 <button onClick={() => setIsModelingModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">
                   <X size={20} />
                 </button>
               </div>
-              <form onSubmit={handleSaveModeling} className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">HERO %</label>
-                    <input name="hero" type="number" defaultValue={activeClient.modeling.hero} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+              
+              <form onSubmit={handleSaveModeling} className="space-y-8">
+                {/* Equilíbrio Section */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Equilíbrio de Conteúdo (Mensal)</h4>
+                    <div className="bg-black text-white px-4 py-1 rounded-full text-[10px] font-bold">
+                      TOTAL: {modelingForm.heroQty + modelingForm.hubQty + modelingForm.helpQty + modelingForm.mistoQty} POSTS/MÊS
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">HUB %</label>
-                    <input name="hub" type="number" defaultValue={activeClient.modeling.hub} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">HELP %</label>
-                    <input name="help" type="number" defaultValue={activeClient.modeling.help} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { name: 'heroQty', label: 'HERO', color: 'text-blue-500', bg: 'bg-blue-50' },
+                      { name: 'hubQty', label: 'HUB', color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                      { name: 'helpQty', label: 'HELP', color: 'text-amber-500', bg: 'bg-amber-50' },
+                      { name: 'mistoQty', label: 'MISTO', color: 'text-rose-500', bg: 'bg-rose-50' },
+                    ].map(field => {
+                      const total = modelingForm.heroQty + modelingForm.hubQty + modelingForm.helpQty + modelingForm.mistoQty;
+                      const pct = total > 0 ? Math.round((modelingForm[field.name as keyof typeof modelingForm] / total) * 100) : 0;
+                      const perWeek = (modelingForm[field.name as keyof typeof modelingForm] / 4).toFixed(1);
+                      
+                      return (
+                        <div key={field.name} className={cn("p-4 rounded-2xl border border-transparent transition-all", field.bg)}>
+                          <label className="text-[10px] font-bold text-gray-500 uppercase mb-2 block">{field.label}</label>
+                          <input 
+                            name={field.name} 
+                            type="number" 
+                            value={modelingForm[field.name as keyof typeof modelingForm]} 
+                            onChange={(e) => setModelingForm(prev => ({ ...prev, [field.name]: parseInt(e.target.value) || 0 }))}
+                            className="w-full bg-white/50 border border-gray-200 rounded-xl p-2 text-sm font-bold outline-none focus:ring-2 focus:ring-black/5" 
+                          />
+                          <div className="mt-3 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-gray-400">Percentual:</span>
+                              <span className={cn("text-[10px] font-bold", field.color)}>{pct}%</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-gray-400">Média/Semana:</span>
+                              <span className="text-[10px] font-bold text-gray-600">{perWeek}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* Permeabilidade & Info Section */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Aderência %</label>
-                    <input name="adherence" type="number" defaultValue={activeClient.modeling.adherence} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Aderência (Qtd)</label>
+                    <input name="adherenceQty" type="number" defaultValue={activeClient.modeling?.adherenceQty || 0} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black/5" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Profundidade %</label>
-                    <input name="depth" type="number" defaultValue={activeClient.modeling.depth} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Profundidade (Qtd)</label>
+                    <input name="depthQty" type="number" defaultValue={activeClient.modeling?.depthQty || 0} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black/5" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Dias Postados</label>
+                    <input name="postedDays" type="number" defaultValue={activeClient.modeling?.postedDays || 0} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black/5" />
                   </div>
                 </div>
-                <div className="pt-4">
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Plataforma Vigente</label>
+                  <input name="currentPlatform" type="text" defaultValue={activeClient.modeling?.currentPlatform || ''} placeholder="Ex: Instagram" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black/5" />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Observações da Modelagem</label>
+                  <textarea name="observations" defaultValue={activeClient.modeling?.observations || ''} rows={3} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black/5 resize-none" />
+                </div>
+
+                {/* Weekly Schedule Section */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Grade Semanal</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="p-2 border border-gray-200 text-left text-[10px] font-bold text-gray-400 uppercase">Dia</th>
+                          <th className="p-2 border border-gray-200 text-left text-[10px] font-bold text-gray-400 uppercase">Tipo</th>
+                          <th className="p-2 border border-gray-200 text-left text-[10px] font-bold text-gray-400 uppercase">Conteúdo</th>
+                          <th className="p-2 border border-gray-200 text-left text-[10px] font-bold text-gray-400 uppercase">Formato</th>
+                          <th className="p-2 border border-gray-200 text-left text-[10px] font-bold text-gray-400 uppercase">Horário</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(day => (
+                          <tr key={day}>
+                            <td className="p-2 border border-gray-200 font-bold bg-gray-50/50">{day}</td>
+                            <td className="p-2 border border-gray-200">
+                              <select 
+                                name={`schedule_${day}_type`} 
+                                defaultValue={activeClient.modeling?.weeklySchedule?.[day]?.type || 'HELP'}
+                                className="w-full p-1 bg-transparent outline-none text-[10px] font-bold"
+                              >
+                                <option value="HERO">HERO</option>
+                                <option value="HUB">HUB</option>
+                                <option value="HELP">HELP</option>
+                                <option value="MISTO">MISTO</option>
+                              </select>
+                            </td>
+                            <td className="p-2 border border-gray-200">
+                              <input name={`schedule_${day}_content`} type="text" defaultValue={activeClient.modeling?.weeklySchedule?.[day]?.content || ''} className="w-full p-1 bg-transparent outline-none text-xs" />
+                            </td>
+                            <td className="p-2 border border-gray-200">
+                              <input name={`schedule_${day}_format`} type="text" defaultValue={activeClient.modeling?.weeklySchedule?.[day]?.format || ''} className="w-full p-1 bg-transparent outline-none text-xs" />
+                            </td>
+                            <td className="p-2 border border-gray-200">
+                              <input name={`schedule_${day}_time`} type="text" defaultValue={activeClient.modeling?.weeklySchedule?.[day]?.time || ''} className="w-full p-1 bg-transparent outline-none text-xs" />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-gray-100 font-bold">
+                          <td className="p-2 border border-gray-200">TOTAL</td>
+                          <td className="p-2 border border-gray-200" colSpan={3}>
+                            {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].filter(day => activeClient.modeling?.weeklySchedule?.[day]?.content).length} Posts Planejados
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Ordem & Grupo Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Ordem de Conteúdo</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 w-6">{i + 1}º</span>
+                          <input name={`order_${i}`} type="text" defaultValue={activeClient.modeling?.order?.[i] || ''} className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-black/5" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Grupo de Conteúdo</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 w-6">{i + 1}º</span>
+                          <input name={`group_${i}`} type="text" defaultValue={activeClient.modeling?.group?.[i] || ''} className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-black/5" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t sticky bottom-0 bg-white pb-2">
                   <button 
                     type="submit"
-                    className="w-full py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-4 bg-black text-white font-bold text-sm rounded-2xl hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2"
                   >
-                    <Check size={18} />
-                    Salvar Modelagem
+                    <Check size={20} />
+                    Salvar Modelagem Completa
                   </button>
                 </div>
               </form>
