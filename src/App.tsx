@@ -785,12 +785,18 @@ const MapsKeySplashScreen = () => (
   </div>
 );
 
-// --- Main App ---
-
-export default function App() {
-  useEffect(() => {
-    document.title = "COBO by Mattz";
-  }, []);
+  // --- Main App ---
+  
+  export default function App() {
+    useEffect(() => {
+      const updateTitle = () => {
+        document.title = "COBO by Mattz";
+      };
+      updateTitle();
+      // Also update on any visibility change or focus
+      window.addEventListener('focus', updateTitle);
+      return () => window.removeEventListener('focus', updateTitle);
+    }, []);
 
   if (!hasValidMapsKey) {
     return <MapsKeySplashScreen />;
