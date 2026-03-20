@@ -793,9 +793,12 @@ const MapsKeySplashScreen = () => (
         document.title = "COBO by Mattz";
       };
       updateTitle();
-      // Also update on any visibility change or focus
+      const interval = setInterval(updateTitle, 1000);
       window.addEventListener('focus', updateTitle);
-      return () => window.removeEventListener('focus', updateTitle);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('focus', updateTitle);
+      };
     }, []);
 
   if (!hasValidMapsKey) {
