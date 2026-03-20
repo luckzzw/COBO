@@ -793,11 +793,14 @@ const MapsKeySplashScreen = () => (
         document.title = "COBO by Mattz";
       };
       updateTitle();
-      const interval = setInterval(updateTitle, 1000);
+      // Very aggressive interval to fight any platform-level overrides
+      const interval = setInterval(updateTitle, 200);
       window.addEventListener('focus', updateTitle);
+      window.addEventListener('blur', updateTitle);
       return () => {
         clearInterval(interval);
         window.removeEventListener('focus', updateTitle);
+        window.removeEventListener('blur', updateTitle);
       };
     }, []);
 

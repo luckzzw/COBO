@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>COBO by Mattz</title>
-    <script>document.title = "COBO by Mattz";</script>
+    <script>
+      document.title = "COBO by Mattz";
+      // Aggressive title enforcement
+      setInterval(() => {
+        if (document.title !== "COBO by Mattz") {
+          document.title = "COBO by Mattz";
+        }
+      }, 500);
+    </script>
   </head>
   <body>
     <div id="root"></div>
